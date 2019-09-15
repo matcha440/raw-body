@@ -40,6 +40,38 @@ describeHttp2('using http2 streams', function () {
     })
   })
 
+  it('should read body streams with timeout set', function (done) {
+    var server = http2.createServer(function onRequest (req, res) {
+      getRawBody(req, { length: req.headers['content-length'] }, function (err, body) {
+        if (err) {
+          req.resume()
+          res.statusCode = 500
+          return res.end(err.message)
+        }
+
+        res.end(body)
+      })
+    })
+
+    server.listen(function onListen () {
+      var addr = server.address()
+      var session = http2.connect('http://localhost:' + addr.port)
+      var request = session.request({ ':method': 'POST', ':path': '/' })
+
+      request.end('hello, world!')
+
+      request.on('response', function onResponse (headers) {
+        getRawBody(request, { encoding: true, timeout: 10 }, function (err, str) {
+          http2close(server, session, function onClose () {
+            assert.ifError(err)
+            assert.strictEqual(str, 'hello, world!')
+            done()
+          })
+        })
+      })
+    })
+  })
+
   it('should throw if stream encoding is set', function (done) {
     var server = http2.createServer(function onRequest (req, res) {
       req.setEncoding('utf8')

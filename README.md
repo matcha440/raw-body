@@ -58,6 +58,7 @@ Options:
   By default, a `Buffer` instance will be returned when no encoding is specified.
   Most likely, you want `utf-8`, so setting `encoding` to `true` will decode as `utf-8`.
   You can use any type of encoding supported by [iconv-lite](https://www.npmjs.org/package/iconv-lite#readme).
+- `timeout` - Configures the time to wait (in milliseconds) to read the first byte of the request.
 
 You can also pass a string in place of options to just specify the encoding.
 

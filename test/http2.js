@@ -108,6 +108,36 @@ describeHttp2('using http2 streams', function () {
       request.write('testing...')
     })
   })
+
+  it('should throw if request times out waiting for the first byte', function (done) {
+    var socket
+    var server = http2.createServer(function onRequest (req, res) {
+      getRawBody(req, { length: req.headers['content-length'], timeout: 10 }, function (err, body) {
+        server.close()
+        socket.destroy()
+        assert.ok(err)
+        assert.strictEqual(err.message, 'request read timeout')
+        assert.strictEqual(err.status, 408)
+        assert.strictEqual(err.type, 'request.timeout')
+        done()
+      })
+    })
+
+    server.listen(function onListen () {
+      var addr = server.address()
+      var session = http2.connect('http://localhost:' + addr.port, {
+        createConnection: function (authority) {
+          return (socket = net.connect(authority.port, authority.hostname))
+        }
+      })
+
+      session.request({
+        ':method': 'POST',
+        ':path': '/',
+        'content-length': '50'
+      })
+    })
+  })
 })
 
 function http2close (server, session, callback) {

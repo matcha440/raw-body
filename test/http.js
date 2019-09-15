@@ -95,4 +95,28 @@ describe('using http streams', function () {
       })
     })
   })
+
+  it('should throw if request times out waiting for the first byte', function (done) {
+    var socket
+    var server = http.createServer(function onRequest (req, res) {
+      getRawBody(req, { length: req.headers['content-length'], timeout: 10 }, function (err, body) {
+        server.close()
+        socket.destroy()
+        assert.ok(err)
+        assert.strictEqual(err.message, 'request read timeout')
+        assert.strictEqual(err.status, 408)
+        assert.strictEqual(err.type, 'request.timeout')
+        done()
+      })
+    })
+
+    server.listen(function onListen () {
+      socket = net.connect(server.address().port, function () {
+        socket.write('POST / HTTP/1.0\r\n')
+        socket.write('Connection: keep-alive\r\n')
+        socket.write('Content-Length: 50\r\n')
+        socket.write('\r\n')
+      })
+    })
+  })
 })

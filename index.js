@@ -103,13 +103,17 @@ function getRawBody (stream, options, callback) {
     ? parseInt(opts.length, 10)
     : null
 
+  var timeout = opts.timeout != null && !isNaN(opts.timeout)
+    ? parseInt(opts.timeout, 10)
+    : null
+
   if (done) {
     // classic callback style
-    return readStream(stream, encoding, length, limit, done)
+    return readStream(stream, encoding, length, limit, timeout, done)
   }
 
   return new Promise(function executor (resolve, reject) {
-    readStream(stream, encoding, length, limit, function onRead (err, buf) {
+    readStream(stream, encoding, length, limit, timeout, function onRead (err, buf) {
       if (err) return reject(err)
       resolve(buf)
     })
@@ -144,9 +148,17 @@ function halt (stream) {
  * @public
  */
 
-function readStream (stream, encoding, length, limit, callback) {
+function readStream (stream, encoding, length, limit, timeout, callback) {
   var complete = false
   var sync = true
+
+  var timeoutHandle = timeout !== null && timeout > 0
+    ? setTimeout(function () {
+      return done(createError(408, 'request read timeout', {
+        type: 'request.timeout'
+      }))
+    })
+    : null
 
   // check the length and limit options.
   // note: we intentionally leave the stream paused,
@@ -239,6 +251,11 @@ function readStream (stream, encoding, length, limit, callback) {
 
   function onData (chunk) {
     if (complete) return
+
+    if (timeoutHandle) {
+      clearInterval(timeoutHandle)
+      timeoutHandle = null
+    }
 
     received += chunk.length
 
